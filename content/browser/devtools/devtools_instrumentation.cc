@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "content/browser/devtools/devtools_instrumentation.h"
 
+#include "base/debug/stack_trace.h"
 #include "content/browser/devtools/browser_devtools_agent_host.h"
 #include "content/browser/devtools/protocol/emulation_handler.h"
 #include "content/browser/devtools/protocol/fetch_handler.h"
@@ -40,6 +41,38 @@ void DispatchToAgents(FrameTreeNode* frame_tree_node,
 }
 
 template <typename Handler, typename... MethodArgs, typename... Args>
+void DispatchToAgentsDebug(FrameTreeNode* frame_tree_node,
+                           void (Handler::*method)(MethodArgs...),
+                           Args&&... args) {
+  DevToolsAgentHostImpl* agent_host =
+      RenderFrameDevToolsAgentHost::GetFor(frame_tree_node);
+  if (agent_host) {
+    std::vector<DevToolsSession*> sessions = agent_host->sessions();
+    std::stringstream session_ptrs_stream;
+    session_ptrs_stream << "[";
+    for (DevToolsSession* session : agent_host->sessions()) {
+      session_ptrs_stream << session << ",";
+    }
+    session_ptrs_stream << "]";
+    std::string session_ptrs = session_ptrs_stream.str();
+
+    LOG(ERROR) << "jarhar@" << __FUNCTION__ << " agent_host: " << agent_host
+               << " frame_tree_node: " << frame_tree_node
+               << " frame_tree_node->frame_tree(): "
+               << frame_tree_node->frame_tree()
+               << " sessions: " << session_ptrs;
+  } else {
+    LOG(ERROR) << "jarhar@" << __FUNCTION__ << " no agent host";
+  }
+  if (!agent_host)
+    return;
+  for (auto* h : Handler::ForAgentHost(agent_host)) {
+    LOG(ERROR) << "jarhar@" << __FUNCTION__ << " calling handler method";
+    (h->*method)(std::forward<Args>(args)...);
+  }
+}
+
+template <typename Handler, typename... MethodArgs, typename... Args>
 void DispatchToAgents(int frame_tree_node_id,
                       void (Handler::*method)(MethodArgs...),
                       Args&&... args) {
@@ -57,6 +90,8 @@ void OnResetNavigationRequest(NavigationRequest* navigation_request) {
        node = node->parent()) {
     DispatchToAgents(node, &protocol::PageHandler::NavigationReset,
                      navigation_request);
+    DispatchToAgents(node, &protocol::TargetHandler::OnResetNavigationRequest,
+                     navigation_request);
   }
 }
 
@@ -69,6 +104,8 @@ void OnNavigationResponseReceived(const NavigationRequest& nav_request,
   DispatchToAgents(ftn, &protocol::NetworkHandler::ResponseReceived, id, id,
                    url, protocol::Network::ResourceTypeEnum::Document,
                    response.head, frame_id);
+  DispatchToAgents(ftn, &protocol::TargetHandler::OnNavigationResponseReceived,
+                   nav_request);
 }
 
 void OnNavigationRequestFailed(
@@ -78,6 +115,8 @@ void OnNavigationRequestFailed(
   std::string id = nav_request.devtools_navigation_token().ToString();
   DispatchToAgents(ftn, &protocol::NetworkHandler::LoadingComplete, id,
                    protocol::Network::ResourceTypeEnum::Document, status);
+  DispatchToAgents(ftn, &protocol::TargetHandler::OnNavigationRequestFailed,
+                   nav_request);
 }
 
 void OnSignedExchangeReceived(
@@ -268,9 +307,16 @@ bool WillCreateURLLoaderFactory(
 
 void OnNavigationRequestWillBeSent(
     const NavigationRequest& navigation_request) {
+  LOG(ERROR) << "jarhar@" << __FUNCTION__
+             << " url: " << navigation_request.common_params().url
+             //<< " stack trace:\n" << base::debug::StackTrace().ToString()
+             ;
   DispatchToAgents(navigation_request.frame_tree_node(),
                    &protocol::NetworkHandler::NavigationRequestWillBeSent,
                    navigation_request);
+  DispatchToAgentsDebug(navigation_request.frame_tree_node(),
+                        &protocol::TargetHandler::OnNavigationRequestWillBeSent,
+                        navigation_request);
 }
 
 // Notify the provided agent host of a certificate error. Returns true if one of

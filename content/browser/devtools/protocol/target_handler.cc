@@ -475,6 +475,25 @@ std::unique_ptr<NavigationThrottle> TargetHandler::CreateThrottleForNavigation(
                                     navigation_handle);
 }
 
+void TargetHandler::OnNavigationRequestWillBeSent(
+    const NavigationRequest& nav_request) {
+  auto_attacher_.OnNavigationRequestWillBeSent(nav_request);
+}
+
+void TargetHandler::OnResetNavigationRequest(NavigationRequest* nav_request) {
+  auto_attacher_.OnResetNavigationRequest(nav_request);
+}
+
+void TargetHandler::OnNavigationResponseReceived(
+    const NavigationRequest& nav_request) {
+  auto_attacher_.OnNavigationResponseReceived(nav_request);
+}
+
+void TargetHandler::OnNavigationRequestFailed(
+    const NavigationRequest& nav_request) {
+  auto_attacher_.OnNavigationRequestFailed(nav_request);
+}
+
 void TargetHandler::ClearThrottles() {
   base::flat_set<Throttle*> copy(throttles_);
   for (Throttle* throttle : copy)

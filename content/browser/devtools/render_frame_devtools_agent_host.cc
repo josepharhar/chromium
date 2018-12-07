@@ -364,6 +364,8 @@ RenderFrameDevToolsAgentHost::~RenderFrameDevToolsAgentHost() {
 
 void RenderFrameDevToolsAgentHost::ReadyToCommitNavigation(
     NavigationHandle* navigation_handle) {
+  LOG(ERROR) << "jarhar@" << __FUNCTION__
+             << " navigation_handle->GetURL(): " << navigation_handle->GetURL();
   NavigationHandleImpl* handle =
       static_cast<NavigationHandleImpl*>(navigation_handle);
   for (auto* tracing : protocol::TracingHandler::ForAgentHost(this))

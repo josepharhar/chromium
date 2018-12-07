@@ -11,12 +11,32 @@
 #include "content/browser/frame_host/frame_tree.h"
 #include "content/browser/frame_host/frame_tree_node.h"
 #include "content/browser/frame_host/navigation_handle_impl.h"
+#include "content/browser/frame_host/navigation_request.h"
 #include "content/browser/frame_host/render_frame_host_impl.h"
 
 namespace content {
 namespace protocol {
 
 namespace {
+
+std::string UrlsToString(const base::flat_set<GURL>& urls) {
+  std::stringstream stream;
+  stream << "[";
+  for (const GURL& url : urls) {
+    stream << url << ",";
+  }
+  stream << "]";
+  return stream.str();
+}
+
+DevToolsAgentHostImpl* GetAgentHost(RenderFrameHostImpl* render_frame_host) {
+  if (!render_frame_host)
+    return nullptr;
+  FrameTreeNode* frame_tree_node = render_frame_host->frame_tree_node();
+  if (!frame_tree_node)
+    return nullptr;
+  return RenderFrameDevToolsAgentHost::GetFor(frame_tree_node);
+}
 
 using ScopeAgentsMap =
     std::map<GURL, std::unique_ptr<ServiceWorkerDevToolsAgentHost::List>>;
@@ -95,7 +115,9 @@ TargetAutoAttacher::TargetAutoAttacher(
       renderer_channel_(renderer_channel),
       render_frame_host_(nullptr),
       auto_attach_(false),
-      wait_for_debugger_on_start_(false) {}
+      wait_for_debugger_on_start_(false) {
+  LOG(ERROR) << "jarhar@" << __FUNCTION__ << " constructor";
+}
 
 TargetAutoAttacher::~TargetAutoAttacher() {}
 
@@ -196,7 +218,16 @@ void TargetAutoAttacher::ReattachServiceWorkers(bool waiting_for_debugger) {
     browser_context = render_frame_host_->GetProcess()->GetBrowserContext();
   }
 
-  auto matching = GetMatchingServiceWorkers(browser_context, frame_urls_);
+  base::flat_set<GURL> urls = frame_urls_;
+  LOG(ERROR) << "jarhar@"
+             << __FUNCTION__
+             << " frame_urls_: " << UrlsToString(frame_urls_)
+             << " using navigation_url_: "
+             << (navigation_url_ ? navigation_url_->spec() : "null");
+  if (navigation_url_)
+    urls.insert(*navigation_url_);
+  // urls.insert(GURL("http://localhost:8000/"));
+  auto matching = GetMatchingServiceWorkers(browser_context, urls);
   Hosts new_hosts;
   for (const auto& pair : matching)
     new_hosts.insert(pair.second);
@@ -253,6 +284,46 @@ void TargetAutoAttacher::SetAutoAttach(bool auto_attach,
       this, auto_attach, wait_for_debugger_on_start, std::move(callback));
 }
 
+void TargetAutoAttacher::OnNavigationRequestWillBeSent(
+    const NavigationRequest& nav_request) {
+  navigation_url_.reset(new GURL(nav_request.common_params().url));
+
+  if (render_frame_host_) {
+    LOG(ERROR) << "jarhar@" << __FUNCTION__ << " this: " << this
+               << " navigation_url_: "
+               << navigation_url_->spec()
+               //<< " agent_host: " << GetAgentHost(render_frame_host_);
+               << " frame_tree_node: " << render_frame_host_->frame_tree_node()
+               << " frame_tree_node->frame_tree(): "
+               << render_frame_host_->frame_tree_node()->frame_tree();
+  } else {
+    LOG(ERROR) << "jarhar@" << __FUNCTION__
+               << "navigation_url_: " << navigation_url_->spec()
+               << " no render_Frame_host_";
+  }
+}
+
+void TargetAutoAttacher::OnResetNavigationRequest(
+    NavigationRequest* nav_request) {
+  LOG(ERROR) << "jarhar@" << __FUNCTION__ << " unsetting navigation_url_: "
+             << (navigation_url_ ? navigation_url_->spec() : "null");
+  // navigation_url_.reset();
+}
+
+void TargetAutoAttacher::OnNavigationResponseReceived(
+    const NavigationRequest& nav_request) {
+  LOG(ERROR) << "jarhar@" << __FUNCTION__ << " unsetting navigation_url_: "
+             << (navigation_url_ ? navigation_url_->spec() : "null");
+  // navigation_url_.reset();
+}
+
+void TargetAutoAttacher::OnNavigationRequestFailed(
+    const NavigationRequest& nav_request) {
+  LOG(ERROR) << "jarhar@" << __FUNCTION__ << " unsetting navigation_url_: "
+             << (navigation_url_ ? navigation_url_->spec() : "null");
+  // navigation_url_.reset();
+}
+
 // -------- ServiceWorkerDevToolsManager::Observer ----------
 
 void TargetAutoAttacher::WorkerCreated(ServiceWorkerDevToolsAgentHost* host,
@@ -260,7 +331,41 @@ void TargetAutoAttacher::WorkerCreated(ServiceWorkerDevToolsAgentHost* host,
   BrowserContext* browser_context = nullptr;
   if (render_frame_host_)
     browser_context = render_frame_host_->GetProcess()->GetBrowserContext();
-  auto hosts = GetMatchingServiceWorkers(browser_context, frame_urls_);
+  base::flat_set<GURL> urls = frame_urls_;
+  if (navigation_url_)
+    urls.insert(*navigation_url_);
+  if (render_frame_host_) {
+    LOG(ERROR) << "jarhar@" << __FUNCTION__
+               << " this: " << this
+               << " using navigation_url_: "
+               << (navigation_url_ ? navigation_url_->spec() : "null")
+               << ", agent_host: " << GetAgentHost(render_frame_host_)
+               << ", frame_tree_node: " << render_frame_host_->frame_tree_node()
+               << ", frame_tree_node->frame_tree(): "
+               << render_frame_host_->frame_tree_node()->frame_tree();
+  } else {
+    LOG(ERROR) << "jarhar@" << __FUNCTION__ << " no render frame host";
+  }
+  if (navigation_url_) {
+    GURL working_url("http://localhost:8000/");
+    LOG(ERROR) << "jarhar@" << __FUNCTION__
+               << "\n  navigation_url_->possibly_invalid_spec(): "
+               << navigation_url_->possibly_invalid_spec()
+               << " working_url.possibly_invalid_spec(): "
+               << working_url.possibly_invalid_spec()
+               << "\n  navigation_url_->is_valid(): "
+               << navigation_url_->is_valid() << " working_url.is_valid(): "
+               << working_url.is_valid()
+               /*<< "\n  navigation_url_->parsed_for_possibly_invalid_spec(): "
+               << navigation_url_->parsed_for_possibly_invalid_spec()
+               << "\n  working_url.parsed_for_possibly_invalid_spec(): "
+               << working_url.parsed_for_possibly_invalid_spec()*/
+               << "\n  navigation_url_->inner_url(): "
+               << navigation_url_->inner_url()
+               << " working_url.inner_url(): " << working_url.inner_url();
+  }
+  // urls.insert(GURL("http://localhost:8000/"));
+  auto hosts = GetMatchingServiceWorkers(browser_context, urls);
   if (hosts.find(host->GetId()) != hosts.end()) {
     *should_pause_on_start = wait_for_debugger_on_start_;
     Hosts new_hosts;

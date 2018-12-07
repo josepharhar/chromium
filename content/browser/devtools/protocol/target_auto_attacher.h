@@ -14,6 +14,7 @@ namespace content {
 class DevToolsAgentHostImpl;
 class DevToolsRendererChannel;
 class NavigationHandleImpl;
+class NavigationRequest;
 class RenderFrameHostImpl;
 
 namespace protocol {
@@ -43,6 +44,11 @@ class TargetAutoAttacher : public ServiceWorkerDevToolsManager::Observer {
   void ChildWorkerCreated(DevToolsAgentHostImpl* agent_host,
                           bool waiting_for_debugger);
 
+  void OnNavigationRequestWillBeSent(const NavigationRequest& nav_request);
+  void OnResetNavigationRequest(NavigationRequest* nav_request);
+  void OnNavigationResponseReceived(const NavigationRequest& nav_request);
+  void OnNavigationRequestFailed(const NavigationRequest& nav_request);
+
  private:
   using Hosts = base::flat_set<scoped_refptr<DevToolsAgentHost>>;
 
@@ -71,6 +77,8 @@ class TargetAutoAttacher : public ServiceWorkerDevToolsManager::Observer {
   bool auto_attaching_service_workers_ = false;
 
   Hosts auto_attached_hosts_;
+
+  std::unique_ptr<GURL> navigation_url_;
 
   DISALLOW_COPY_AND_ASSIGN(TargetAutoAttacher);
 };

@@ -406,6 +406,8 @@ WebContents* PrerenderManager::SwapInternal(const GURL& url,
 
   // Don't use prerendered pages if debugger is attached to the tab.
   // See http://crbug.com/98541
+  LOG(ERROR) << "jarhar@" << __FUNCTION__
+             << " IsDebuggerAttached: " << content::DevToolsAgentHost::IsDebuggerAttached(web_contents);
   if (content::DevToolsAgentHost::IsDebuggerAttached(web_contents)) {
     histograms_->RecordFinalStatus(prerender_data->contents()->origin(),
                                    FINAL_STATUS_DEVTOOLS_ATTACHED);

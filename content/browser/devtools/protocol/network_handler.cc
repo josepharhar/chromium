@@ -1593,6 +1593,8 @@ Maybe<String> GetBlockedReasonFor(
 
 void NetworkHandler::NavigationRequestWillBeSent(
     const NavigationRequest& nav_request) {
+  LOG(ERROR) << "jarhar@" << __FUNCTION__
+             << " url: " << nav_request.common_params().url;
   if (!enabled_)
     return;
 

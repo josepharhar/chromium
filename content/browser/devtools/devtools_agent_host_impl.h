@@ -62,6 +62,8 @@ class CONTENT_EXPORT DevToolsAgentHostImpl : public DevToolsAgentHost {
     return result;
   }
 
+  const std::vector<DevToolsSession*>& sessions() const { return sessions_; }
+
  protected:
   DevToolsAgentHostImpl(const std::string& id);
   ~DevToolsAgentHostImpl() override;
@@ -81,8 +83,6 @@ class CONTENT_EXPORT DevToolsAgentHostImpl : public DevToolsAgentHost {
       const std::vector<DevToolsSession*>& restricted_sessions);
   DevToolsIOContext* GetIOContext() { return &io_context_; }
   DevToolsRendererChannel* GetRendererChannel() { return &renderer_channel_; }
-
-  const std::vector<DevToolsSession*>& sessions() const { return sessions_; }
 
  private:
   friend class DevToolsAgentHost;  // for static methods
