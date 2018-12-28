@@ -4,6 +4,8 @@
 
 #include "content/browser/devtools/protocol/target_auto_attacher.h"
 
+#include "content/browser/frame_host/navigation_request.h"
+#include "base/debug/stack_trace.h"
 #include "base/containers/queue.h"
 #include "content/browser/devtools/devtools_renderer_channel.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
@@ -20,6 +22,26 @@ namespace {
 
 using ScopeAgentsMap =
     std::map<GURL, std::unique_ptr<ServiceWorkerDevToolsAgentHost::List>>;
+
+std::string UrlsToString(const base::flat_set<GURL>& urls) {
+  std::stringstream stream;
+  stream << "[";
+  for (const GURL& url : urls) {
+    stream << url << ",";
+  }
+  stream << "]";
+  return stream.str();
+}
+
+std::string HostsToString(const base::flat_set<scoped_refptr<DevToolsAgentHost>>& hosts) {
+  std::stringstream stream;
+  stream << "[";
+  for (const scoped_refptr<DevToolsAgentHost>& host : hosts) {
+    stream << host->GetURL();
+  }
+  stream << "]";
+  return stream.str();
+}
 
 void GetMatchingHostsByScopeMap(
     const ServiceWorkerDevToolsAgentHost::List& agent_hosts,
@@ -192,14 +214,25 @@ void TargetAutoAttacher::ReattachServiceWorkers(bool waiting_for_debugger) {
     for (FrameTreeNode* node :
          render_frame_host_->frame_tree_node()->frame_tree()->Nodes()) {
       frame_urls_.insert(node->current_url());
+      if (node->navigation_request()) {
+        frame_urls_.insert(node->navigation_request()->common_params().url);
+      }
     }
     browser_context = render_frame_host_->GetProcess()->GetBrowserContext();
   }
-
   auto matching = GetMatchingServiceWorkers(browser_context, frame_urls_);
   Hosts new_hosts;
   for (const auto& pair : matching)
     new_hosts.insert(pair.second);
+
+  LOG(ERROR) << "jarhar@" << __FUNCTION__
+    //<< " host->GetURL().spec(): " << host->GetURL().spec()
+    << " frame_urls_: " << UrlsToString(frame_urls_)
+    << "\n  auto_attached_hosts_: " << HostsToString(auto_attached_hosts_)
+    << "\n             new_hosts: " << HostsToString(new_hosts)
+    << " stack trace:\n" << base::debug::StackTrace().ToString()
+    ;
+
   ReattachTargetsOfType(new_hosts, DevToolsAgentHost::kTypeServiceWorker,
                         waiting_for_debugger);
 }
@@ -210,12 +243,16 @@ void TargetAutoAttacher::ReattachTargetsOfType(const Hosts& new_hosts,
   Hosts old_hosts = auto_attached_hosts_;
   for (auto& host : old_hosts) {
     if (host->GetType() == type && new_hosts.find(host) == new_hosts.end()) {
+      LOG(ERROR) << "jarhar@" << __FUNCTION__
+        << " detaching from host: " << host->GetURL();
       auto_attached_hosts_.erase(host);
       detach_callback_.Run(host.get());
     }
   }
   for (auto& host : new_hosts) {
     if (old_hosts.find(host) == old_hosts.end()) {
+      LOG(ERROR) << "jarhar@" << __FUNCTION__
+        << " attaching to host: " << host->GetURL();
       attach_callback_.Run(host.get(), waiting_for_debugger);
       auto_attached_hosts_.insert(host);
     }
@@ -260,7 +297,28 @@ void TargetAutoAttacher::WorkerCreated(ServiceWorkerDevToolsAgentHost* host,
   BrowserContext* browser_context = nullptr;
   if (render_frame_host_)
     browser_context = render_frame_host_->GetProcess()->GetBrowserContext();
+
+
+  //frame_urls_.clear();
+  if (render_frame_host_) {
+    for (FrameTreeNode* node :
+         render_frame_host_->frame_tree_node()->frame_tree()->Nodes()) {
+      frame_urls_.insert(node->current_url());
+      if (node->navigation_request()) {
+        frame_urls_.insert(node->navigation_request()->common_params().url);
+      }
+    }
+  }
   auto hosts = GetMatchingServiceWorkers(browser_context, frame_urls_);
+
+  bool attaching = hosts.find(host->GetId()) != hosts.end();
+
+  LOG(ERROR) << "jarhar@" << __FUNCTION__
+    << " attaching: " << attaching
+    << " host->GetURL().spec(): " << host->GetURL().spec()
+    << " frame_urls_: " << UrlsToString(frame_urls_)
+    << " stack trace:\n" << base::debug::StackTrace().ToString();
+
   if (hosts.find(host->GetId()) != hosts.end()) {
     *should_pause_on_start = wait_for_debugger_on_start_;
     Hosts new_hosts;

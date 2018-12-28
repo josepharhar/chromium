@@ -32,7 +32,9 @@
 
 #include <memory>
 #include <utility>
+#include <stdio.h>
 
+#include "base/debug/stack_trace.h"
 #include "base/macros.h"
 #include "base/memory/scoped_refptr.h"
 #include "build/build_config.h"
@@ -746,6 +748,9 @@ void InspectorNetworkAgent::WillSendRequestInternal(
     const ResourceResponse& redirect_response,
     const FetchInitiatorInfo& initiator_info,
     InspectorPageAgent::ResourceType type) {
+  //fprintf(stderr, "jarhar@ fprintf stderr\n");
+  /*LOG(ERROR) << "jarhar@" << __FUNCTION__
+    << " stack trace:\n" << base::debug::StackTrace().ToString();*/
   String loader_id = IdentifiersFactory::LoaderId(loader);
   // DocumentLoader doesn't have main resource set at the point, so RequestId()
   // won't properly detect main resource. Workaround this by checking the
