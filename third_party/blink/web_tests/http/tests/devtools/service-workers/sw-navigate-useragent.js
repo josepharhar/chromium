@@ -94,6 +94,18 @@
   TestRunner.addResult('navigated to ' + navigateAwayPage);
   TestRunner.addResult('SDK.multitargetNetworkManager.userAgentOverride(): ' + SDK.multitargetNetworkManager.userAgentOverride());
   TestRunner.addResult('');
+
+
+
+  const registrations = TestRunner.serviceWorkerManager.registrations();
+  for (const registrationId of registrations.keys()) {
+    const registration = registrations.get(registrationId);
+    for (const versionId of registration.version.values().values()) {
+      TestRunner.serviceWorkerManager.stopWorker(versionId);
+    }
+  }
+
+
   await targetRemoved;
 
   await TestRunner.navigatePromise(testPage);
