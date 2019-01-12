@@ -96,16 +96,15 @@
   TestRunner.addResult('');
 
 
-
   const registrations = TestRunner.serviceWorkerManager.registrations();
   for (const registrationId of registrations.keys()) {
     const registration = registrations.get(registrationId);
-    for (const versionId of registration.version.values().values()) {
+    for (const serviceWorkerVersion of registration.versions.values()) {
+      const versionId = serviceWorkerVersion.id;
+      TestRunner.addResult(`stopWorker: ${versionId}`);
       TestRunner.serviceWorkerManager.stopWorker(versionId);
     }
   }
-
-
   await targetRemoved;
 
   await TestRunner.navigatePromise(testPage);
