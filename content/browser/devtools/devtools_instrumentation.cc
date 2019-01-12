@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "content/browser/devtools/devtools_instrumentation.h"
 
+#include "base/debug/stack_trace.h"
 #include "content/browser/devtools/browser_devtools_agent_host.h"
 #include "content/browser/devtools/protocol/emulation_handler.h"
 #include "content/browser/devtools/protocol/fetch_handler.h"
@@ -268,9 +269,16 @@ bool WillCreateURLLoaderFactory(
 
 void OnNavigationRequestWillBeSent(
     const NavigationRequest& navigation_request) {
+  LOG(ERROR) << "jarhar@" << __FUNCTION__
+    << " url: " << navigation_request.common_params().url.spec()
+    << " stack trace:\n" << base::debug::StackTrace().ToString()
+    ;
   DispatchToAgents(navigation_request.frame_tree_node(),
                    &protocol::NetworkHandler::NavigationRequestWillBeSent,
                    navigation_request);
+  DispatchToAgents(navigation_request.frame_tree_node(),
+      &protocol::TargetHandler::OnNavigationRequestWillBeSent,
+      navigation_request);
 }
 
 // Notify the provided agent host of a certificate error. Returns true if one of
