@@ -11,6 +11,7 @@
 #include "content/browser/frame_host/frame_tree.h"
 #include "content/browser/frame_host/frame_tree_node.h"
 #include "content/browser/frame_host/navigation_handle_impl.h"
+#include "content/browser/frame_host/navigation_request.h"
 #include "content/browser/frame_host/render_frame_host_impl.h"
 
 namespace content {
@@ -192,6 +193,9 @@ void TargetAutoAttacher::ReattachServiceWorkers(bool waiting_for_debugger) {
     for (FrameTreeNode* node :
          render_frame_host_->frame_tree_node()->frame_tree()->Nodes()) {
       frame_urls_.insert(node->current_url());
+      if (node->navigation_request()) {
+        frame_urls_.insert(node->navigation_request()->common_params().url);
+      }
     }
     browser_context = render_frame_host_->GetProcess()->GetBrowserContext();
   }
@@ -260,6 +264,16 @@ void TargetAutoAttacher::WorkerCreated(ServiceWorkerDevToolsAgentHost* host,
   BrowserContext* browser_context = nullptr;
   if (render_frame_host_)
     browser_context = render_frame_host_->GetProcess()->GetBrowserContext();
+
+  if (render_frame_host_) {
+    for (FrameTreeNode* node :
+         render_frame_host_->frame_tree_node()->frame_tree()->Nodes()) {
+      frame_urls_.insert(node->current_url());
+      if (node->navigation_request()) {
+        frame_urls_.insert(node->navigation_request()->common_params().url);
+      }
+    }
+  }
   auto hosts = GetMatchingServiceWorkers(browser_context, frame_urls_);
   if (hosts.find(host->GetId()) != hosts.end()) {
     *should_pause_on_start = wait_for_debugger_on_start_;

@@ -21,6 +21,7 @@ class DevToolsAgentHostImpl;
 class DevToolsRendererChannel;
 class DevToolsSession;
 class NavigationHandle;
+class NavigationRequest;
 class NavigationThrottle;
 class RenderFrameHostImpl;
 
@@ -56,6 +57,8 @@ class TargetHandler : public DevToolsDomainHandler,
   void DidCommitNavigation();
   std::unique_ptr<NavigationThrottle> CreateThrottleForNavigation(
       NavigationHandle* navigation_handle);
+
+  void OnNavigationRequestWillBeSent(const NavigationRequest& nav_request);
 
   // Domain implementation.
   Response SetDiscoverTargets(bool discover) override;

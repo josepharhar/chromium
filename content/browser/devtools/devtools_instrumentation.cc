@@ -271,6 +271,9 @@ void OnNavigationRequestWillBeSent(
   DispatchToAgents(navigation_request.frame_tree_node(),
                    &protocol::NetworkHandler::NavigationRequestWillBeSent,
                    navigation_request);
+  DispatchToAgents(navigation_request.frame_tree_node(),
+      &protocol::TargetHandler::OnNavigationRequestWillBeSent,
+      navigation_request);
 }
 
 // Notify the provided agent host of a certificate error. Returns true if one of
