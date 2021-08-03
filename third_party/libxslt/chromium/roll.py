@@ -68,7 +68,6 @@ PATCHES = [
     'get-file-attributes-a.patch',
     'xslt-locale.patch',
     'remove-crypto.patch',
-    'Fix-use-after-free-in-xsltApplyTemplates.patch',
 ]
 
 
